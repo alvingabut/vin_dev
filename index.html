@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tebak PIN-nya yaaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#ff9cbc;--key:#b0285a;--ink:#fff;--card:rgba(24,28,52,.78);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:'Montserrat',system-ui,sans-serif;color:var(--ink);background:#140f2e;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.bar{margin:8px 12px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.14);font-size:14px;display:flex;justify-content:space-between}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;padding:14px}
+.card{width:100%;max-width:380px;max-height:88%;overflow-y:auto;scrollbar-width:none;background:var(--card);backdrop-filter:blur(8px);border:2px solid var(--pink);border-radius:20px;padding:22px 20px;box-shadow:0 0 24px rgba(255,156,188,.35)}
+.center{text-align:center}
+h2{margin:0 0 8px;font-size:16px}
+.sub{font-size:14px;margin:8px 0}
+.dots{display:flex;gap:10px;justify-content:center;margin:14px 0}
+.dots i{width:18px;height:18px;border-radius:50%;border:2px solid var(--pink)}
+.dots i.on{background:var(--pink)}
+.msg{min-height:44px;font-size:14px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.pad button{font:700 18px 'Montserrat',sans-serif;color:#fff;background:var(--key);border:2px solid var(--pink);border-radius:10px;padding:12px 0}
+.pad button:active{background:var(--pink);color:#222}
+.pad .z{grid-column:2}
+.avatar{width:86px;height:86px;margin:0 auto 14px;border-radius:50%;background:#d9d9e0;display:flex;align-items:center;justify-content:center;font-size:48px}
+.line{font-size:15px;line-height:1.5;margin:0 0 12px}
+.bar,.stage{position:relative;z-index:1}
+.scene{position:fixed;inset:0;z-index:0;overflow:hidden;background:linear-gradient(180deg,#1b1646 0%,#4a2a7a 35%,#c4577f 62%,#ffb38a 82%,#ffd9a8 100%)}
+.moon{position:absolute;top:9%;right:12%;width:56px;height:56px;border-radius:50%;background:#fff6e0;box-shadow:0 0 30px 12px rgba(255,236,200,.45)}
+.glow{position:absolute;left:50%;bottom:8%;width:140%;height:50%;transform:translateX(-50%);background:radial-gradient(ellipse at center,rgba(255,200,150,.55),transparent 65%)}
+.hills{position:absolute;left:0;bottom:0;width:100%;height:42%}
+.star{position:absolute;background:#fff;border-radius:50%;animation:tw 3s ease-in-out infinite}
+@keyframes tw{50%{opacity:.15}}
+.bub{position:absolute;bottom:-20px;border-radius:50%;background:rgba(255,205,230,.55);box-shadow:0 0 10px rgba(255,180,220,.8);animation:up linear infinite}
+@keyframes up{from{opacity:.9}to{transform:translate(30px,-110vh);opacity:0}}
+.c{opacity:0}
+.c.on{opacity:1}
+.c.tip{box-shadow:2px 0 0 #fff}
+@keyframes b{50%{opacity:0}}
+.reply{display:none;margin:14px auto 0;font:700 14px 'Montserrat',sans-serif;color:#fff;background:rgba(0,0,0,.5);border:1px solid var(--pink);border-radius:20px;padding:10px 22px}
+.shake{animation:s .35s}
+.card>*{animation:in .6s ease both}
+.line{animation:in .5s ease both}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes s{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+</style>
+</head>
+<body>
+<div class="scene" id="scene">
+  <div class="moon"></div><div class="glow"></div>
+  <svg class="hills" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 200L60 150L110 185L170 120L230 180L290 140L350 185L400 150V300H0Z" fill="#7a4590"/>
+    <path d="M0 240L50 200L120 235L190 185L260 235L330 205L400 240V300H0Z" fill="#46306f"/>
+    <path d="M0 275L70 245L140 272L220 238L300 270L400 250V300H0Z" fill="#221a44"/>
+  </svg>
+</div>
+<div class="bar"><span>🔍 S.id/tapijuga</span><span>↻</span></div>
+<div class="stage"><div class="card" id="card"></div></div>
+
+<script>
+// ====== PENGATURAN (ganti sesuai keinginan) ======
+const PIN = "0123";            // PIN yang benar
+const CLUE = "0123";           // petunjuk setelah salah 2x
+const REPLY_TEXT = "Makasih ya, aku juga 🥹💗";
+// =================================================
+const card = document.getElementById('card');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let typed = "", fails = 0;
+
+function showPin(){
+  card.className = 'card center';
+  card.innerHTML = `<h2>Tebak PIN-nya yaaw 🔐🎉</h2>
+  <p class="sub">Masukkan 4 angka PIN yang tepat!</p>
+  <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+  <div class="msg" id="msg"></div>
+  <div class="pad" id="pad"></div>`;
+  const pad = document.getElementById('pad');
+  [1,2,3,4,5,6,7,8,9].forEach(n => pad.append(key(n)));
+  const z = key(0); z.className = 'z'; pad.append(z);
+  const d = key('⌫', true); pad.append(d);
+}
+function key(l, del){
+  const b = document.createElement('button');
+  b.textContent = l;
+  b.onclick = () => del ? (typed = typed.slice(0,-1), draw()) : press(String(l));
+  return b;
+}
+function draw(){
+  document.querySelectorAll('#dots i').forEach((e,i) => e.classList.toggle('on', i < typed.length));
+}
+async function press(n){
+  if(typed.length >= 4) return;
+  typed += n; draw();
+  if(typed.length < 4) return;
+  await sleep(250);
+  if(typed === PIN){ story(); return; }
+  fails++;
+  card.classList.add('shake'); setTimeout(() => card.classList.remove('shake'), 400);
+  const m = document.getElementById('msg');
+  m.innerHTML = fails < 2 ? '<b>Yahh!</b> PIN-nya salah! 🙁<br>Coba lagi ya!'
+                          : `PIN-nya salah lagi! 🤭<br><b>Clue:</b> ${CLUE}`;
+  typed = ""; draw();
+}
+
+// ----- mesin ketik -----
+async function type(el, text, speed = 45){
+  // Render seluruh teks dulu (tersembunyi) supaya tata letak/baris tidak bergeser saat diketik
+  const all = [];
+  let bold = false;
+  for(const part of text.split('**')){
+    const w = document.createElement(bold ? 'b' : 'span');
+    el.append(w);
+    for(const ch of Array.from(part)){
+      const s = document.createElement('span');
+      s.className = 'c'; s.textContent = ch; w.append(s); all.push(s);
+    }
+    bold = !bold;
+  }
+  card.scrollTop = card.scrollHeight;
+  let prev = null;
+  for(let i = 0; i < all.length; i++){
+    const s = all[i], ch = s.textContent;
+    const next = all[i+1] ? all[i+1].textContent : undefined;
+    if(ch.codePointAt(0) > 0x2000) await sleep(160);
+    s.classList.add('on', 'tip');
+    if(prev) prev.classList.remove('tip');
+    prev = s;
+    let d = speed * (0.55 + Math.random() * 0.9);
+    if(/[.!?…]/.test(ch) && (next === undefined || next === ' ')) d += 380;
+    else if(/[,:]/.test(ch)) d += 190;
+    await sleep(d);
+  }
+  if(prev) prev.classList.remove('tip');
+}
+function frame(avatar, title){
+  card.className = 'card';
+  card.innerHTML = `<div class="avatar">${avatar}</div>${title ? `<h2 style="font-size:18px">${title}</h2>` : ''}<div id="body"></div><button class="reply" id="reply">💌 Balas</button>`;
+  return document.getElementById('body');
+}
+async function para(body, text, speed, pause = 500){
+  const p = document.createElement('p'); p.className = 'line'; body.append(p);
+  await type(p, text, speed); await sleep(pause); return p;
+}
+
+async function story(){
+  // Bagian 1: hitung mundur
+  let b = frame('🐼', 'Kamu Tau Ngga? 🤔');
+  await para(b, 'Ada **6 hal terindah** di dunia ini 🌏', 45);
+  for(const t of ['6. Kupu-kupu 🦋','5. Bulan 🌝','4. Bintang ⭐','3. Pelangi 🌈','2. Bunga 🌸']){
+    const p = await para(b, t, 40, 250); p.style.margin = '0 0 6px';
+  }
+  const last = document.createElement('p'); last.className = 'line'; last.textContent = '1. ...'; b.append(last);
+  const w = document.createElement('p'); w.className = 'line'; w.textContent = '⏳ '; b.append(w);
+  for(let i = 1; i <= 3; i++){ w.textContent = '⏳ ' + i; await sleep(900); }
+
+  // Bagian 2: plot twist
+  b = frame('🐼', 'Loh.. Kok Nungguin?! 😜');
+  await para(b, 'Berharap ada kamu di nomer-nomer ini? 🤭', 45, 900);
+  b = frame('🐼', 'Ga adaa! 🤪👏');
+  await para(b, 'Soalnya...', 60, 700);
+  await para(b, 'Kalo **kamu** itu ga bisa dihitung pake nomer! 😄', 45, 900);
+  await para(b, '**Kamu bukan cuma indah**, tapi juga:', 45, 700);
+  await para(b, 'Cakeep, lucu, imut, gemesin, baik hati. Pokoknya… you’re my favorite person, always and forever 🥹💗', 40, 300);
+  const r = document.getElementById('reply'); r.style.display = 'block';
+  r.onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(REPLY_TEXT), '_blank');
+}
+// ----- latar estetik: bintang & partikel melayang -----
+(function(){
+  const sc = document.getElementById('scene'), r = Math.random;
+  for(let i = 0; i < 70; i++){
+    const s = document.createElement('i'), z = 1 + r() * 2;
+    s.className = 'star';
+    s.style.cssText = `left:${r()*100}%;top:${r()*50}%;width:${z}px;height:${z}px;animation-delay:${r()*3}s`;
+    sc.append(s);
+  }
+  for(let i = 0; i < 16; i++){
+    const b = document.createElement('i'), z = 4 + r() * 8;
+    b.className = 'bub';
+    b.style.cssText = `left:${r()*100}%;width:${z}px;height:${z}px;animation-duration:${9+r()*8}s;animation-delay:${-r()*14}s`;
+    sc.append(b);
+  }
+})();
+showPin();
+</script>
+</body>
+</html>
